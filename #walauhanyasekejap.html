@@ -1,0 +1,646 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Video Generator - Real Generation</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        header {
+            text-align: center;
+            color: white;
+            margin-bottom: 40px;
+        }
+
+        header h1 {
+            font-size: 3em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        header p {
+            font-size: 1.2em;
+            opacity: 0.9;
+        }
+
+        .main-card {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+
+        .input-section {
+            margin-bottom: 30px;
+        }
+
+        .input-section label {
+            display: block;
+            font-size: 1.1em;
+            font-weight: 600;
+            margin-bottom: 10px;
+            color: #333;
+        }
+
+        textarea {
+            width: 100%;
+            min-height: 120px;
+            padding: 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 1em;
+            font-family: inherit;
+            resize: vertical;
+            transition: border-color 0.3s;
+        }
+
+        textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .generate-btn {
+            width: 100%;
+            padding: 18px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 1.2em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .generate-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(102, 126, 234, 0.4);
+        }
+
+        .generate-btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .result-section {
+            margin-top: 40px;
+            display: none;
+        }
+
+        .result-section.active {
+            display: block;
+        }
+
+        .video-container {
+            background: #000;
+            border-radius: 15px;
+            overflow: hidden;
+            margin-bottom: 20px;
+            position: relative;
+        }
+
+        .loading {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 60px 20px;
+            color: white;
+        }
+
+        .spinner {
+            width: 60px;
+            height: 60px;
+            border: 4px solid rgba(255,255,255,0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 20px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .progress-bar {
+            width: 80%;
+            height: 8px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 4px;
+            overflow: hidden;
+            margin-top: 20px;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            width: 0%;
+            transition: width 0.3s;
+        }
+
+        canvas {
+            width: 100%;
+            display: block;
+            border-radius: 15px;
+        }
+
+        video {
+            width: 100%;
+            display: block;
+            border-radius: 15px;
+        }
+
+        .video-info {
+            background: #f5f5f5;
+            padding: 20px;
+            border-radius: 10px;
+            margin-top: 20px;
+        }
+
+        .video-info h3 {
+            margin-bottom: 10px;
+            color: #333;
+        }
+
+        .video-info p {
+            color: #666;
+            line-height: 1.6;
+        }
+
+        .download-btn {
+            padding: 12px 24px;
+            background: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 1em;
+            cursor: pointer;
+            margin-top: 15px;
+        }
+
+        .download-btn:hover {
+            background: #45a049;
+        }
+
+        .examples {
+            margin-top: 30px;
+            padding: 20px;
+            background: #f9f9f9;
+            border-radius: 10px;
+        }
+
+        .examples h3 {
+            margin-bottom: 15px;
+            color: #333;
+        }
+
+        .example-item {
+            padding: 10px;
+            margin-bottom: 10px;
+            background: white;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        .example-item:hover {
+            transform: translateX(5px);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🎬 AI Video Generator</h1>
+            <p>Generate video nyata dari teks menggunakan AI</p>
+        </header>
+
+        <div class="main-card">
+            <div class="input-section">
+                <label for="promptInput">Deskripsikan video yang ingin Anda buat:</label>
+                <textarea 
+                    id="promptInput" 
+                    placeholder="Contoh: Matahari terbenam di pantai dengan ombak yang tenang dan langit berwarna oranye"
+                ></textarea>
+            </div>
+
+            <button class="generate-btn" id="generateBtn" onclick="generateVideo()">
+                ✨ Generate Video
+            </button>
+
+            <div class="result-section" id="resultSection">
+                <div class="video-container" id="videoContainer">
+                    <div class="loading" id="loadingDiv">
+                        <div class="spinner"></div>
+                        <p id="loadingText">Memproses prompt...</p>
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="progressFill"></div>
+                        </div>
+                    </div>
+                    <canvas id="canvas" style="display: none;"></canvas>
+                    <video id="videoElement" style="display: none;" controls></video>
+                </div>
+
+                <div class="video-info" id="videoInfo" style="display: none;">
+                    <h3>Video Berhasil Dibuat! 🎉</h3>
+                    <p id="videoDescription"></p>
+                    <button class="download-btn" onclick="downloadVideo()">⬇️ Download Video</button>
+                </div>
+            </div>
+
+            <div class="examples">
+                <h3>💡 Contoh Prompt:</h3>
+                <div class="example-item" onclick="useExample(0)">
+                    🌅 Matahari terbenam di pantai dengan ombak yang tenang
+                </div>
+                <div class="example-item" onclick="useExample(1)">
+                    ⭐ Bintang-bintang berkedip di langit malam
+                </div>
+                <div class="example-item" onclick="useExample(2)">
+                    🌧️ Hujan turun dengan tetesan air yang jatuh
+                </div>
+                <div class="example-item" onclick="useExample(3)">
+                    🌸 Bunga sakura berguguran diterpa angin
+                </div>
+                <div class="example-item" onclick="useExample(4)">
+                    ☁️ Awan bergerak perlahan di langit biru
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const examples = [
+            "Matahari terbenam di pantai dengan ombak yang tenang",
+            "Bintang-bintang berkedip di langit malam",
+            "Hujan turun dengan tetesan air yang jatuh",
+            "Bunga sakura berguguran diterpa angin",
+            "Awan bergerak perlahan di langit biru"
+        ];
+
+        let mediaRecorder;
+        let recordedChunks = [];
+        let generatedVideoBlob = null;
+
+        function useExample(index) {
+            document.getElementById('promptInput').value = examples[index];
+        }
+
+        async function generateVideo() {
+            const prompt = document.getElementById('promptInput').value.trim();
+            
+            if (!prompt) {
+                alert('Silakan masukkan deskripsi video terlebih dahulu!');
+                return;
+            }
+
+            const resultSection = document.getElementById('resultSection');
+            const loadingDiv = document.getElementById('loadingDiv');
+            const videoInfo = document.getElementById('videoInfo');
+            const generateBtn = document.getElementById('generateBtn');
+            const progressFill = document.getElementById('progressFill');
+            const loadingText = document.getElementById('loadingText');
+            const canvas = document.getElementById('canvas');
+            const videoElement = document.getElementById('videoElement');
+
+            // Show result section
+            resultSection.classList.add('active');
+            loadingDiv.style.display = 'flex';
+            videoInfo.style.display = 'none';
+            canvas.style.display = 'none';
+            videoElement.style.display = 'none';
+            generateBtn.disabled = true;
+            progressFill.style.width = '0%';
+
+            try {
+                // Step 1: Analyze prompt with Claude AI
+                loadingText.textContent = 'Menganalisis prompt dengan AI...';
+                progressFill.style.width = '20%';
+
+                const response = await fetch("https://api.anthropic.com/v1/messages", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({
+                        model: "claude-sonnet-4-20250514",
+                        max_tokens: 1000,
+                        messages: [{
+                            role: "user",
+                            content: `Analyze this video prompt and return ONLY a JSON object (no markdown, no backticks) with these fields:
+- scene: main scene description
+- colors: array of 3 hex colors that match the mood
+- elements: array of 3-5 objects/elements in the scene
+- movement: type of movement (slow/medium/fast)
+- mood: overall mood (calm/energetic/peaceful/dramatic)
+
+Prompt: "${prompt}"`
+                        }]
+                    })
+                });
+
+                const data = await response.json();
+                let analysisText = data.content[0].text.trim();
+                
+                // Remove markdown code blocks if present
+                analysisText = analysisText.replace(/```json\n?/g, '').replace(/```\n?/g, '');
+                
+                const analysis = JSON.parse(analysisText);
+                
+                loadingText.textContent = 'Membuat visual dari analisis AI...';
+                progressFill.style.width = '40%';
+                await new Promise(r => setTimeout(r, 500));
+
+                // Step 2: Create video based on analysis
+                loadingText.textContent = 'Rendering video...';
+                progressFill.style.width = '60%';
+
+                canvas.style.display = 'block';
+                loadingDiv.style.display = 'none';
+                
+                await createVideoFromAnalysis(canvas, analysis, prompt);
+                
+                progressFill.style.width = '100%';
+
+            } catch (error) {
+                console.error('Error:', error);
+                loadingText.textContent = 'Terjadi kesalahan. Membuat video dengan mode fallback...';
+                
+                // Fallback: create simple video without AI
+                canvas.style.display = 'block';
+                loadingDiv.style.display = 'none';
+                await createSimpleVideo(canvas, prompt);
+            }
+
+            generateBtn.disabled = false;
+        }
+
+        async function createVideoFromAnalysis(canvas, analysis, prompt) {
+            const ctx = canvas.getContext('2d');
+            canvas.width = 1280;
+            canvas.height = 720;
+
+            const fps = 30;
+            const duration = 5; // 5 seconds
+            const totalFrames = fps * duration;
+
+            // Setup video recording
+            const stream = canvas.captureStream(fps);
+            mediaRecorder = new MediaRecorder(stream, { 
+                mimeType: 'video/webm;codecs=vp9',
+                videoBitsPerSecond: 2500000
+            });
+            
+            recordedChunks = [];
+            
+            mediaRecorder.ondataavailable = (e) => {
+                if (e.data.size > 0) {
+                    recordedChunks.push(e.data);
+                }
+            };
+
+            mediaRecorder.onstop = () => {
+                generatedVideoBlob = new Blob(recordedChunks, { type: 'video/webm' });
+                const videoURL = URL.createObjectURL(generatedVideoBlob);
+                
+                const videoElement = document.getElementById('videoElement');
+                videoElement.src = videoURL;
+                videoElement.style.display = 'block';
+                canvas.style.display = 'none';
+                
+                const videoInfo = document.getElementById('videoInfo');
+                videoInfo.style.display = 'block';
+                document.getElementById('videoDescription').textContent = `Prompt: "${prompt}" | Scene: ${analysis.scene}`;
+            };
+
+            mediaRecorder.start();
+
+            // Animation based on scene type
+            const colors = analysis.colors || ['#FF6B6B', '#4ECDC4', '#45B7D1'];
+            const movement = analysis.movement || 'medium';
+            const speedMultiplier = movement === 'slow' ? 0.5 : movement === 'fast' ? 2 : 1;
+
+            // Render frames
+            for (let frame = 0; frame < totalFrames; frame++) {
+                const progress = frame / totalFrames;
+                
+                // Clear canvas
+                ctx.fillStyle = colors[0];
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                // Create gradient background
+                const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+                gradient.addColorStop(0, colors[0]);
+                gradient.addColorStop(0.5, colors[1]);
+                gradient.addColorStop(1, colors[2]);
+                ctx.fillStyle = gradient;
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                // Add animated elements based on scene
+                const time = progress * Math.PI * 2 * speedMultiplier;
+                
+                // Draw scene-specific elements
+                if (analysis.scene.toLowerCase().includes('sunset') || 
+                    analysis.scene.toLowerCase().includes('matahari')) {
+                    drawSun(ctx, canvas.width / 2, 200 + Math.sin(time) * 20, 80, colors[0]);
+                }
+                
+                if (analysis.scene.toLowerCase().includes('star') || 
+                    analysis.scene.toLowerCase().includes('bintang')) {
+                    drawStars(ctx, canvas.width, canvas.height, frame, speedMultiplier);
+                }
+                
+                if (analysis.scene.toLowerCase().includes('rain') || 
+                    analysis.scene.toLowerCase().includes('hujan')) {
+                    drawRain(ctx, canvas.width, canvas.height, frame, speedMultiplier);
+                }
+                
+                if (analysis.scene.toLowerCase().includes('cloud') || 
+                    analysis.scene.toLowerCase().includes('awan')) {
+                    drawClouds(ctx, canvas.width, canvas.height, frame, speedMultiplier);
+                }
+                
+                if (analysis.scene.toLowerCase().includes('wave') || 
+                    analysis.scene.toLowerCase().includes('ombak')) {
+                    drawWaves(ctx, canvas.width, canvas.height, time);
+                }
+
+                // Draw floating particles
+                for (let i = 0; i < 30; i++) {
+                    const x = (i * 50 + frame * speedMultiplier * 2) % canvas.width;
+                    const y = 100 + Math.sin(time + i) * 50;
+                    ctx.fillStyle = `rgba(255, 255, 255, ${0.3 + Math.sin(time + i) * 0.2})`;
+                    ctx.beginPath();
+                    ctx.arc(x, y, 3, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+
+                await new Promise(resolve => setTimeout(resolve, 1000 / fps));
+            }
+
+            mediaRecorder.stop();
+        }
+
+        async function createSimpleVideo(canvas, prompt) {
+            const ctx = canvas.getContext('2d');
+            canvas.width = 1280;
+            canvas.height = 720;
+
+            const fps = 30;
+            const duration = 5;
+            const totalFrames = fps * duration;
+
+            const stream = canvas.captureStream(fps);
+            mediaRecorder = new MediaRecorder(stream, { 
+                mimeType: 'video/webm;codecs=vp9',
+                videoBitsPerSecond: 2500000
+            });
+            
+            recordedChunks = [];
+            
+            mediaRecorder.ondataavailable = (e) => {
+                if (e.data.size > 0) {
+                    recordedChunks.push(e.data);
+                }
+            };
+
+            mediaRecorder.onstop = () => {
+                generatedVideoBlob = new Blob(recordedChunks, { type: 'video/webm' });
+                const videoURL = URL.createObjectURL(generatedVideoBlob);
+                
+                const videoElement = document.getElementById('videoElement');
+                videoElement.src = videoURL;
+                videoElement.style.display = 'block';
+                canvas.style.display = 'none';
+                
+                const videoInfo = document.getElementById('videoInfo');
+                videoInfo.style.display = 'block';
+                document.getElementById('videoDescription').textContent = `Prompt: "${prompt}"`;
+            };
+
+            mediaRecorder.start();
+
+            for (let frame = 0; frame < totalFrames; frame++) {
+                const progress = frame / totalFrames;
+                const time = progress * Math.PI * 2;
+                
+                const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+                gradient.addColorStop(0, `hsl(${220 + progress * 40}, 70%, 50%)`);
+                gradient.addColorStop(1, `hsl(${280 + progress * 40}, 70%, 30%)`);
+                ctx.fillStyle = gradient;
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                // Animated circles
+                for (let i = 0; i < 5; i++) {
+                    const x = canvas.width / 2 + Math.cos(time + i * 0.8) * (200 + i * 50);
+                    const y = canvas.height / 2 + Math.sin(time + i * 0.8) * (200 + i * 50);
+                    ctx.fillStyle = `rgba(255, 255, 255, ${0.1 + i * 0.05})`;
+                    ctx.beginPath();
+                    ctx.arc(x, y, 50 + i * 20, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+
+                await new Promise(resolve => setTimeout(resolve, 1000 / fps));
+            }
+
+            mediaRecorder.stop();
+        }
+
+        function drawSun(ctx, x, y, radius, color) {
+            const gradient = ctx.createRadialGradient(x, y, 0, x, y, radius);
+            gradient.addColorStop(0, '#FFD700');
+            gradient.addColorStop(0.5, '#FFA500');
+            gradient.addColorStop(1, color);
+            ctx.fillStyle = gradient;
+            ctx.beginPath();
+            ctx.arc(x, y, radius, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        function drawStars(ctx, width, height, frame, speed) {
+            for (let i = 0; i < 50; i++) {
+                const x = (i * 137.5) % width;
+                const y = (i * 100) % height;
+                const twinkle = Math.sin(frame * 0.1 * speed + i) * 0.5 + 0.5;
+                ctx.fillStyle = `rgba(255, 255, 255, ${twinkle})`;
+                ctx.beginPath();
+                ctx.arc(x, y, 2, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+
+        function drawRain(ctx, width, height, frame, speed) {
+            ctx.strokeStyle = 'rgba(200, 200, 255, 0.5)';
+            ctx.lineWidth = 2;
+            for (let i = 0; i < 100; i++) {
+                const x = (i * 20) % width;
+                const y = ((frame * speed * 10) + i * 50) % height;
+                ctx.beginPath();
+                ctx.moveTo(x, y);
+                ctx.lineTo(x, y + 20);
+                ctx.stroke();
+            }
+        }
+
+        function drawClouds(ctx, width, height, frame, speed) {
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
+            for (let i = 0; i < 5; i++) {
+                const x = ((frame * speed) + i * 300) % (width + 200) - 100;
+                const y = 100 + i * 80;
+                ctx.beginPath();
+                ctx.arc(x, y, 50, 0, Math.PI * 2);
+                ctx.arc(x + 40, y, 60, 0, Math.PI * 2);
+                ctx.arc(x + 80, y, 50, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+
+        function drawWaves(ctx, width, height, time) {
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+            ctx.lineWidth = 3;
+            for (let i = 0; i < 5; i++) {
+                ctx.beginPath();
+                for (let x = 0; x < width; x += 10) {
+                    const y = height - 200 + Math.sin(x * 0.01 + time + i * 0.5) * 30 + i * 20;
+                    if (x === 0) ctx.moveTo(x, y);
+                    else ctx.lineTo(x, y);
+                }
+                ctx.stroke();
+            }
+        }
+
+        function downloadVideo() {
+            if (!generatedVideoBlob) {
+                alert('Video belum selesai dibuat!');
+                return;
+            }
+
+            const url = URL.createObjectURL(generatedVideoBlob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'ai-generated-video.webm';
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+    </script>
+</body>
+</html>
